@@ -1,55 +1,78 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Go-00ADD8?style=flat&logo=go&logoColor=white" />
-  <img src="https://img.shields.io/badge/concurrent-goroutines-00ADD8?style=flat" />
-  <img src="https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white" />
+  <img src="https://app-eta-seven-61.vercel.app/banner-urlchecker.svg" width="900"/>
 </p>
 
-<h1 align="center">url-checker</h1>
-<p align="center">High-performance concurrent URL checker in Go. Mutates a base URL across thousands of variants and finds valid endpoints in seconds.</p>
+<p align="center">
+  <img src="https://img.shields.io/badge/Go-00ADD8?style=flat&logo=go&logoColor=white"/>
+  <img src="https://img.shields.io/badge/goroutines-concurrent-00ADD8?style=flat"/>
+  <img src="https://img.shields.io/badge/sync%2Fatomic-lock--free-39d353?style=flat"/>
+  <img src="https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white"/>
+</p>
+
+<h2 align="center">url-checker — высокопроизводительный URL-чекер на Go</h2>
+<p align="center">Инструмент для конкурентной мутации и проверки URL. Берёт базовую ссылку, генерирует тысячи вариантов и проверяет их параллельно.</p>
 
 ---
 
-## How It Works
+## Как это работает
 
-1. Takes a known valid URL as a seed
-2. Generates variants by mutating path segments (character substitution, Base64 encoding variants, bit flips)
-3. Fires concurrent HTTP requests using a goroutine worker pool
-4. Tracks hits, misses, and network errors in real time with atomic counters
-5. Writes successful URLs to output files
+```
+Базовый URL
+    │
+    ▼
+Analyzer (мутатор)
+    ├─ analyzer.go       — подстановка символов
+    ├─ analyzer_bits.go  — bit-level кодировки
+    └─ analyzer_triple.go — тройная мутация сегментов
+    │
+    ▼
+Worker Pool (горутины)
+    │  ┌─────────────────────────────────┐
+    │  │  goroutine 1 ──▶ HTTP GET ──▶ 200? │
+    │  │  goroutine 2 ──▶ HTTP GET ──▶ 404? │
+    │  │  goroutine N ──▶ HTTP GET ──▶ ...  │
+    │  └─────────────────────────────────┘
+    │
+    ▼
+sync/atomic счётчики (без мьютексов)
+    ├─ totalChecked
+    ├─ foundCount
+    └─ netErrors
+    │
+    ▼
+found_urls.txt / success.txt
+```
 
-## Performance
+## Производительность
 
-- Lock-free metrics via `sync/atomic`
-- Connection pooling with custom `http.Transport`
-- `sync.Pool` for byte buffer reuse — zero GC pressure at high concurrency
+- Lock-free метрики через `sync/atomic` — нет блокировок на горячем пути
+- Пул соединений через кастомный `http.Transport`
+- `sync.Pool` для буферов байт — минимальная нагрузка на GC
+- Тюнер (`tuner.go`) — автоматический подбор оптимального числа воркеров
 
-## Usage
+## Использование
 
-**Checker:**
 ```bash
+# Основной чекер
 go build -o checker .
 ./checker
-```
 
-**Tuner** (concurrency parameter search):
-```bash
+# Тюнер параметров конкурентности
 go build -o tuner tuner.go
 ./tuner
-```
 
-**Result parser:**
-```bash
+# Парсер результатов
 python3 parser.py
 ```
 
-## Project Structure
+## Структура проекта
 
-| File | Description |
-|------|-------------|
-| `main.go` | Entry point, worker pool, HTTP client |
-| `analyzer.go` | URL mutation logic |
-| `analyzer_bits.go` | Bit-level encoding variants |
-| `analyzer_triple.go` | Triple-segment mutation |
-| `extractor.go` | Result extraction helpers |
-| `tuner.go` | Concurrency parameter tuner |
-| `parser.py` | Python log parser |
+| Файл | Описание |
+|------|----------|
+| `main.go` | Точка входа, worker pool, HTTP-клиент |
+| `analyzer.go` | Мутации URL — посимвольная замена |
+| `analyzer_bits.go` | Bit-level и Base64 варианты кодировки |
+| `analyzer_triple.go` | Тройная мутация сегментов пути |
+| `extractor.go` | Извлечение и фильтрация результатов |
+| `tuner.go` | Подбор оптимальной конкурентности |
+| `parser.py` | Анализ логов |
