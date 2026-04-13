@@ -9,32 +9,32 @@
   <img src="https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white"/>
 </p>
 
-<h2 align="center">url-checker — высокопроизводительный URL-чекер на Go</h2>
-<p align="center">Инструмент для конкурентной мутации и проверки URL. Берёт базовую ссылку, генерирует тысячи вариантов и проверяет их параллельно.</p>
+<h2 align="center">url-checker — High-Performance Concurrent URL Checker</h2>
+<p align="center">Takes a base URL, generates thousands of mutations, and checks them concurrently with a goroutine worker pool.</p>
 
 ---
 
-## Как это работает
+## How It Works
 
 ```
-Базовый URL
+Base URL
     │
     ▼
-Analyzer (мутатор)
-    ├─ analyzer.go       — подстановка символов
-    ├─ analyzer_bits.go  — bit-level кодировки
-    └─ analyzer_triple.go — тройная мутация сегментов
+Analyzer (mutator)
+    ├─ analyzer.go        — character substitution
+    ├─ analyzer_bits.go   — bit-level encoding variants
+    └─ analyzer_triple.go — triple path segment mutation
     │
     ▼
-Worker Pool (горутины)
-    │  ┌─────────────────────────────────┐
+Worker Pool (goroutines)
+    │  ┌──────────────────────────────────┐
     │  │  goroutine 1 ──▶ HTTP GET ──▶ 200? │
     │  │  goroutine 2 ──▶ HTTP GET ──▶ 404? │
     │  │  goroutine N ──▶ HTTP GET ──▶ ...  │
-    │  └─────────────────────────────────┘
+    │  └──────────────────────────────────┘
     │
     ▼
-sync/atomic счётчики (без мьютексов)
+sync/atomic counters (lock-free)
     ├─ totalChecked
     ├─ foundCount
     └─ netErrors
@@ -43,36 +43,36 @@ sync/atomic счётчики (без мьютексов)
 found_urls.txt / success.txt
 ```
 
-## Производительность
+## Performance
 
-- Lock-free метрики через `sync/atomic` — нет блокировок на горячем пути
-- Пул соединений через кастомный `http.Transport`
-- `sync.Pool` для буферов байт — минимальная нагрузка на GC
-- Тюнер (`tuner.go`) — автоматический подбор оптимального числа воркеров
+- Lock-free metrics via `sync/atomic` — no mutex on the hot path
+- Connection pooling with custom `http.Transport`
+- `sync.Pool` for byte buffers — minimal GC pressure
+- Tuner (`tuner.go`) — automatically finds optimal worker count
 
-## Использование
+## Usage
 
 ```bash
-# Основной чекер
+# Main checker
 go build -o checker .
 ./checker
 
-# Тюнер параметров конкурентности
+# Concurrency tuner
 go build -o tuner tuner.go
 ./tuner
 
-# Парсер результатов
+# Result parser
 python3 parser.py
 ```
 
-## Структура проекта
+## Project Structure
 
-| Файл | Описание |
-|------|----------|
-| `main.go` | Точка входа, worker pool, HTTP-клиент |
-| `analyzer.go` | Мутации URL — посимвольная замена |
-| `analyzer_bits.go` | Bit-level и Base64 варианты кодировки |
-| `analyzer_triple.go` | Тройная мутация сегментов пути |
-| `extractor.go` | Извлечение и фильтрация результатов |
-| `tuner.go` | Подбор оптимальной конкурентности |
-| `parser.py` | Анализ логов |
+| File | Description |
+|------|-------------|
+| `main.go` | Entry point, worker pool, HTTP client |
+| `analyzer.go` | URL mutations — character substitution |
+| `analyzer_bits.go` | Bit-level and Base64 encoding variants |
+| `analyzer_triple.go` | Triple path segment mutation |
+| `extractor.go` | Result extraction and filtering |
+| `tuner.go` | Concurrency parameter tuner |
+| `parser.py` | Log analysis helper |
